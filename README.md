@@ -24,7 +24,8 @@ Tested with a 2D game on the iPhone Duo simulator (iOS 27.1).
   `xcode-select`: `build.sh` reads `DEVELOPER_DIR`, which defaults to
   `/Applications/Xcode-27.1-RC.app/Contents/Developer`.
 - `git`, `scons`, `python3`, `curl`.
-- About 3 GB of free disk space for the source and build.
+- About 4 GB of free disk space: about 2.3 GB for the source, build and output, plus 1.3 GB if
+  `build.sh` downloads the export templates.
 - The Godot 4.7.2 editor, to export your project.
 
 ## Build the template
