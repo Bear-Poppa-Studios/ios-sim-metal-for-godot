@@ -1,0 +1,22 @@
+diff --git a/drivers/metal/simulator_error_domains.cpp b/drivers/metal/simulator_error_domains.cpp
+new file mode 100644
+index 0000000..2e4a681
+--- /dev/null
++++ b/drivers/metal/simulator_error_domains.cpp
+@@ -0,0 +1,16 @@
++// The iOS Simulator SDK's Metal.tbd does not export these two error domains, although the device
++// SDK does. metal-cpp's static initialisation references both, so the simulator build defines them
++// here to link.
++
++#if defined(IOS_SIMULATOR)
++
++#include <CoreFoundation/CoreFoundation.h>
++
++extern "C" {
++__attribute__((visibility("default"))) extern const CFStringRef MTLIOErrorDomain;
++__attribute__((visibility("default"))) extern const CFStringRef MTLTensorDomain;
++const CFStringRef MTLIOErrorDomain = CFSTR("MTLIOErrorDomain");
++const CFStringRef MTLTensorDomain = CFSTR("MTLTensorDomain");
++}
++
++#endif

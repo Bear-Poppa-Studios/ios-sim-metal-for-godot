@@ -1,0 +1,103 @@
+diff --git a/drivers/metal/rendering_context_driver_metal.cpp b/drivers/metal/rendering_context_driver_metal.cpp
+index 97af15a..fe9aafd 100644
+--- a/drivers/metal/rendering_context_driver_metal.cpp
++++ b/drivers/metal/rendering_context_driver_metal.cpp
+@@ -210,7 +210,13 @@ public:
+ 		count--;
+ 		front = (front + 1) % frame_buffers.size();
+ 
+-		if (vsync_mode != DisplayServerEnums::VSYNC_DISABLED) {
++		bool present_after_minimum_duration = vsync_mode != DisplayServerEnums::VSYNC_DISABLED;
++#if defined(IOS_SIMULATOR)
++		// The iOS Simulator's command buffer does not implement presentDrawable:afterMinimumDuration:.
++		static const bool has_minimum_duration_present = class_respondsToSelector(object_getClass(reinterpret_cast<id>(p_cmd_buffer->get_command_buffer())), sel_registerName("presentDrawable:afterMinimumDuration:"));
++		present_after_minimum_duration = present_after_minimum_duration && has_minimum_duration_present;
++#endif
++		if (present_after_minimum_duration) {
+ 			p_cmd_buffer->get_command_buffer()->presentDrawableAfterMinimumDuration(drawable, present_minimum_duration);
+ 		} else {
+ 			p_cmd_buffer->get_command_buffer()->presentDrawable(drawable);
+diff --git a/drivers/metal/rendering_device_driver_metal.cpp b/drivers/metal/rendering_device_driver_metal.cpp
+index 90dae10..1299dc8 100644
+--- a/drivers/metal/rendering_device_driver_metal.cpp
++++ b/drivers/metal/rendering_device_driver_metal.cpp
+@@ -219,7 +219,13 @@ static const MTL::TextureType TEXTURE_TYPE[RDD::TEXTURE_TYPE_MAX] = {
+ 	MTL::TextureTypeCube,
+ 	MTL::TextureType1DArray,
+ 	MTL::TextureType2DArray,
++#if defined(IOS_SIMULATOR)
++	// The iOS Simulator's Metal rejects cube array textures, so they are stored as 2D arrays with
++	// six layers per cube.
++	MTL::TextureType2DArray,
++#else
+ 	MTL::TextureTypeCubeArray,
++#endif
+ };
+ 
+ bool RenderingDeviceDriverMetal::is_valid_linear(TextureFormat const &p_format) const {
+@@ -249,7 +255,11 @@ RDD::TextureID RenderingDeviceDriverMetal::texture_create(const TextureFormat &p
+ 			p_format.texture_type == TEXTURE_TYPE_2D_ARRAY) {
+ 		desc->setArrayLength(p_format.array_layers);
+ 	} else if (p_format.texture_type == TEXTURE_TYPE_CUBE_ARRAY) {
++#if defined(IOS_SIMULATOR)
++		desc->setArrayLength(p_format.array_layers);
++#else
+ 		desc->setArrayLength(p_format.array_layers / 6);
++#endif
+ 	}
+ 
+ 	// TODO(sgc): Evaluate lossy texture support (perhaps as a project option?)
+@@ -2893,6 +2903,8 @@ Error RenderingDeviceDriverMetal::_initialize(uint32_t p_device_index, uint32_t
+ 	}
+ 
+ 	// The Metal renderer requires Apple4 family. This is 2017 era A11 chips and newer.
++	// The iOS Simulator reports a lower family, so the check is skipped there.
++#if !defined(IOS_SIMULATOR)
+ 	if (device_properties->features.highestFamily < MTL::GPUFamilyApple4) {
+ 		String error_string = vformat("Your Apple GPU does not support the following features, which are required to use Metal-based renderers in Godot:\n\n");
+ 		if (!device_properties->features.imageCubeArray) {
+@@ -2908,6 +2920,7 @@ Error RenderingDeviceDriverMetal::_initialize(uint32_t p_device_index, uint32_t
+ 
+ 		return ERR_CANT_CREATE;
+ 	}
++#endif
+ 
+ 	return OK;
+ }
+diff --git a/platform/ios/detect.py b/platform/ios/detect.py
+index b7da135..67d42f9 100644
+--- a/platform/ios/detect.py
++++ b/platform/ios/detect.py
+@@ -153,10 +153,6 @@ def configure(env: "SConsEnvironment"):
+     env.Prepend(CPPPATH=["#platform/ios"])
+     env.Append(CPPDEFINES=["IOS_ENABLED", "APPLE_EMBEDDED_ENABLED", "UNIX_ENABLED", "COREAUDIO_ENABLED"])
+ 
+-    if env["metal"] and env["simulator"]:
+-        print_warning("iOS Simulator does not support the Metal rendering driver")
+-        env["metal"] = False
+-
+     if env["metal"]:
+         env.AppendUnique(CPPDEFINES=["METAL_ENABLED", "RD_ENABLED"])
+         env.Prepend(
+diff --git a/drivers/metal/simulator_error_domains.cpp b/drivers/metal/simulator_error_domains.cpp
+new file mode 100644
+index 0000000..2e4a681
+--- /dev/null
++++ b/drivers/metal/simulator_error_domains.cpp
+@@ -0,0 +1,16 @@
++// The iOS Simulator SDK's Metal.tbd does not export these two error domains, although the device
++// SDK does. metal-cpp's static initialisation references both, so the simulator build defines them
++// here to link.
++
++#if defined(IOS_SIMULATOR)
++
++#include <CoreFoundation/CoreFoundation.h>
++
++extern "C" {
++__attribute__((visibility("default"))) extern const CFStringRef MTLIOErrorDomain;
++__attribute__((visibility("default"))) extern const CFStringRef MTLTensorDomain;
++const CFStringRef MTLIOErrorDomain = CFSTR("MTLIOErrorDomain");
++const CFStringRef MTLTensorDomain = CFSTR("MTLTensorDomain");
++}
++
++#endif

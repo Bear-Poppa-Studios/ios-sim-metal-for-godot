@@ -1,0 +1,28 @@
+--- a/drivers/metal/rendering_device_driver_metal.cpp
++++ b/drivers/metal/rendering_device_driver_metal.cpp
+@@ -219,7 +219,13 @@
+ 	MTL::TextureTypeCube,
+ 	MTL::TextureType1DArray,
+ 	MTL::TextureType2DArray,
++#if defined(IOS_SIMULATOR)
++	// The iOS Simulator's Metal rejects cube array textures, so they are stored as 2D arrays with
++	// six layers per cube.
++	MTL::TextureType2DArray,
++#else
+ 	MTL::TextureTypeCubeArray,
++#endif
+ };
+ 
+ bool RenderingDeviceDriverMetal::is_valid_linear(TextureFormat const &p_format) const {
+@@ -249,7 +255,11 @@
+ 			p_format.texture_type == TEXTURE_TYPE_2D_ARRAY) {
+ 		desc->setArrayLength(p_format.array_layers);
+ 	} else if (p_format.texture_type == TEXTURE_TYPE_CUBE_ARRAY) {
++#if defined(IOS_SIMULATOR)
++		desc->setArrayLength(p_format.array_layers);
++#else
+ 		desc->setArrayLength(p_format.array_layers / 6);
++#endif
+ 	}
+ 
+ 	// TODO(sgc): Evaluate lossy texture support (perhaps as a project option?)

@@ -1,0 +1,19 @@
+diff --git a/drivers/metal/rendering_context_driver_metal.cpp b/drivers/metal/rendering_context_driver_metal.cpp
+index 97af15a..fe9aafd 100644
+--- a/drivers/metal/rendering_context_driver_metal.cpp
++++ b/drivers/metal/rendering_context_driver_metal.cpp
+@@ -210,7 +210,13 @@ public:
+ 		count--;
+ 		front = (front + 1) % frame_buffers.size();
+ 
+-		if (vsync_mode != DisplayServerEnums::VSYNC_DISABLED) {
++		bool present_after_minimum_duration = vsync_mode != DisplayServerEnums::VSYNC_DISABLED;
++#if defined(IOS_SIMULATOR)
++		// The iOS Simulator's command buffer does not implement presentDrawable:afterMinimumDuration:.
++		static const bool has_minimum_duration_present = class_respondsToSelector(object_getClass(reinterpret_cast<id>(p_cmd_buffer->get_command_buffer())), sel_registerName("presentDrawable:afterMinimumDuration:"));
++		present_after_minimum_duration = present_after_minimum_duration && has_minimum_duration_present;
++#endif
++		if (present_after_minimum_duration) {
+ 			p_cmd_buffer->get_command_buffer()->presentDrawableAfterMinimumDuration(drawable, present_minimum_duration);
+ 		} else {
+ 			p_cmd_buffer->get_command_buffer()->presentDrawable(drawable);
