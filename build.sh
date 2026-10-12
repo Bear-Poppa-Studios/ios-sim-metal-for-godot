@@ -10,7 +10,8 @@
 #   DEVELOPER_DIR  Xcode to build with (default: /Applications/Xcode-27.1-RC.app/Contents/Developer)
 #   JOBS           parallel scons jobs (default: the CPU count)
 #
-# Output: dist/ios_sim_debug.zip and dist/SHA256SUMS. Work files go to src/ and build/.
+# Output in dist/: godot-4.7.2-ios-sim-metal-debug.zip, Godot's LICENSE.txt and COPYRIGHT.txt, and
+# SHA256SUMS for all three. Work files go to src/ and build/.
 
 set -euo pipefail
 
@@ -20,6 +21,7 @@ GODOT_REPO="https://github.com/godotengine/godot.git"
 RELEASE_URL="https://github.com/godotengine/godot/releases/download/${GODOT_TAG}"
 TPZ_NAME="Godot_v${GODOT_TAG}_export_templates.tpz"
 SIM_LIB="libgodot.ios.debug.xcframework/ios-arm64_x86_64-simulator/libgodot.a"
+ASSET="godot-${GODOT_VERSION}-ios-sim-metal-debug.zip"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC="$ROOT/src/godot"
@@ -125,14 +127,15 @@ splice_template() {
 	lipo -create "$x86" "$LIB_ARM64" -output "$stage/$SIM_LIB"
 
 	mkdir -p "$DIST"
-	cp "$WORK/ios.zip" "$DIST/ios_sim_debug.zip"
-	(cd "$stage" && zip -q "$DIST/ios_sim_debug.zip" "$SIM_LIB")
+	cp "$WORK/ios.zip" "$DIST/$ASSET"
+	(cd "$stage" && zip -q "$DIST/$ASSET" "$SIM_LIB")
 
 	local staged packed
 	staged="$(shasum -a 256 "$stage/$SIM_LIB" | awk '{ print $1 }')"
-	packed="$(unzip -p "$DIST/ios_sim_debug.zip" "$SIM_LIB" | shasum -a 256 | awk '{ print $1 }')"
+	packed="$(unzip -p "$DIST/$ASSET" "$SIM_LIB" | shasum -a 256 | awk '{ print $1 }')"
 	[ "$staged" = "$packed" ] || die "The spliced library in the zip does not match the staged one."
-	(cd "$DIST" && shasum -a 256 ios_sim_debug.zip >SHA256SUMS)
+	cp "$SRC/LICENSE.txt" "$SRC/COPYRIGHT.txt" "$DIST/"
+	(cd "$DIST" && shasum -a 256 "$ASSET" LICENSE.txt COPYRIGHT.txt >SHA256SUMS)
 }
 
 check_prerequisites
@@ -140,5 +143,5 @@ fetch_source
 build_library
 official_template "${1:-}"
 splice_template
-say "Done: $DIST/ios_sim_debug.zip"
+say "Done: $DIST/$ASSET"
 cat "$DIST/SHA256SUMS"

@@ -1,4 +1,4 @@
-# godot-ios-sim-metal
+# ios-sim-metal-for-godot
 
 Run a Godot 4.7.2 game in Apple's iOS Simulator on the **Mobile renderer over Metal**, including
 the iPhone Duo foldable simulator in Xcode 27.1.
@@ -45,15 +45,16 @@ Tested with a 2D game on the iPhone Duo simulator (iOS 27.1).
 3. Takes the official iOS template, checking its SHA-512 against the release's
    `SHA512-SUMS.txt` when it downloads it.
 4. Combines the new arm64 library with the official x86_64 simulator slice.
-5. Writes `dist/ios_sim_debug.zip` and `dist/SHA256SUMS`.
+5. Writes `dist/godot-4.7.2-ios-sim-metal-debug.zip`, Godot's `LICENSE.txt` and `COPYRIGHT.txt`
+   (which apply to the template), and `dist/SHA256SUMS` for all three.
 
 Override the Xcode with `DEVELOPER_DIR=…` and the job count with `JOBS=…`.
 
 ## Use it
 
 1. Add an iOS export preset for the simulator. Set **Custom Template → Debug** to
-   `dist/ios_sim_debug.zip`, then export the Xcode project. Leave the rendering method on
-   `mobile`.
+   `dist/godot-4.7.2-ios-sim-metal-debug.zip`, then export the Xcode project. Leave the
+   rendering method on `mobile`.
 2. Exclude any plugin or GDExtension that ships a device-only (arm64 iOS) framework. Those block
    the simulator link.
 3. Build and install with the same Xcode:
